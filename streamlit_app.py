@@ -1,8 +1,16 @@
+# streamlit_app.py
 import streamlit as st
 import os
-from api_client import AirQualityAPI
-from poem_generator import PoemGenerator
-from audio_processor import AudioProcessor
+import sys
+
+# Add src directory to Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+
+# Now we can import from src
+from src.api_client import AirQualityAPI
+from src.poem_generator import PoemGenerator
+from src.audio_processor import AudioProcessor
+from src.utils import get_coordinates
 
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
@@ -18,7 +26,6 @@ def set_api_keys():
     
     if st.button("Save API Keys"):
         if openai_key and google_key:
-            # Store keys in session state
             st.session_state.openai_key = openai_key
             st.session_state.google_key = google_key
             st.session_state.api_keys_set = True
@@ -31,7 +38,6 @@ def main():
     
     initialize_session_state()
     
-    # If API keys aren't set, show the input form
     if not st.session_state.api_keys_set:
         set_api_keys()
         st.stop()
@@ -55,12 +61,12 @@ def main():
     else:
         col1, col2 = st.columns(2)
         with col1:
-            latitude = st.number_input("Latitude", value=45.4642)  # Default to Milan's coordinates
+            latitude = st.number_input("Latitude", value=45.4642)  # Default to Milan
         with col2:
             longitude = st.number_input("Longitude", value=9.1900)
         location = {"latitude": latitude, "longitude": longitude}
     
-    if st.button("Generate Poem"):
+    if location and st.button("Generate Poem"):
         try:
             # Initialize clients with API keys
             api_client = AirQualityAPI(st.session_state.google_key)
