@@ -1,47 +1,43 @@
 # src/poem_generator.py
 from openai import OpenAI
 from typing import Dict, Any
+import json
+import os
 
 class PoemGenerator:
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
+        self.config = self._load_config()
+        
+    def _load_config(self) -> Dict:
+        """Load configuration from config file"""
+        config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
     
-    def generate(self, air_data: Dict[str, Any]) -> str:
+    def generate(self, air_data: Dict[str, Any], 
+                system_prompt: str = None, 
+                user_prompt_template: str = None) -> str:
         """
-        Generate a poem based on air quality data
+        Generate a poem based on air quality data and context
         
         Args:
             air_data (dict): Processed air quality data
+            system_prompt (str): Custom system prompt
+            user_prompt_template (str): Custom user prompt template
             
         Returns:
             str: Generated poem
         """
-        # Create a prompt that includes the air quality data in a structured way
-        aqi = air_data["aqi"]
-        dominant_pollutant = air_data["dominantPollutant"]
-        
-        prompt = f"""Create a short, playful poem about the current air quality.
-        The AQI is {aqi} and the dominant pollutant is {dominant_pollutant}.
-        
-        Make the poem:
-        1. Whimsical and light-hearted like Animal Crossing
-        2. 4-6 lines long
-        3. Include a simple rhyme scheme
-        4. Mention the air quality in a creative way
-        
-        If the AQI is good (0-50), make it very cheerful.
-        If the AQI is moderate (51-100), make it optimistic but cautious.
-        If the AQI is unhealthy (>100), make it concerned but still playful."""
-        
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model=self.config['openai']['model'],
                 messages=[
-                    {"role": "system", "content": "You are a cheerful poet in the style of Animal Crossing characters."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": system_prompt or self.config['prompts']['system_prompt']},
+                    {"role": "user", "content": user_prompt_template or self.config['prompts']['user_prompt_template']}
                 ],
-                temperature=0.7,
-                max_tokens=200
+                temperature=self.config['openai']['temperature'],
+                max_tokens=self.config['openai']['max_tokens']
             )
             
             return response.choices[0].message.content.strip()
