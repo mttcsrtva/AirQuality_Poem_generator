@@ -32,7 +32,7 @@ class AudioProcessor:
             "vibrato_rate": 10.0,
             "vibrato_depth": 0.5,
             "distortion": 1.7,
-            "speed": 1.0
+            "speed": 0.85
         }
         
         # Use provided parameters or defaults

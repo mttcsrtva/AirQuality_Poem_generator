@@ -95,7 +95,7 @@ def show_audio_settings():
                 "Speech Speed",
                 min_value=0.5,
                 max_value=2.0,
-                value=1.0,
+                value=0.85,
                 help="Adjusts how fast the text is spoken"
             )
         
