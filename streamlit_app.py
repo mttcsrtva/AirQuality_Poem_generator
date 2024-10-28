@@ -23,11 +23,8 @@ def load_config():
 
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
-    # Load config first
     if 'config' not in st.session_state:
         st.session_state.config = load_config()
-    
-    # Then initialize other state variables
     if 'api_keys_set' not in st.session_state:
         st.session_state.api_keys_set = False
     if 'air_quality_data' not in st.session_state:
@@ -58,7 +55,7 @@ def show_prompt_settings():
         st.markdown("*This sets the overall style and personality of the poem generator*")
         system_prompt = st.text_area(
             "System Prompt",
-            value=st.session_state.config['prompts']['system_prompt'],  # Use config directly
+            value=st.session_state.config['prompts']['system_prompt'],
             height=300,
             key="system_prompt_input"
         )
@@ -67,7 +64,7 @@ def show_prompt_settings():
         st.markdown("*This is the template for generating each poem. Use {city}, {current_date}, {caqi}, and {dominant_pollutant} as placeholders*")
         user_prompt = st.text_area(
             "User Prompt Template",
-            value=st.session_state.config['prompts']['user_prompt_template'],  # Use config directly
+            value=st.session_state.config['prompts']['user_prompt_template'],
             height=300,
             key="user_prompt_input"
         )
@@ -90,7 +87,7 @@ def show_audio_settings():
                 "Pitch Shift (semitones)",
                 min_value=0.0,
                 max_value=12.0,
-                value=6.0,
+                value=7.2,
                 help="Higher values make the voice higher-pitched"
             )
             
@@ -98,7 +95,7 @@ def show_audio_settings():
                 "Speech Speed",
                 min_value=0.5,
                 max_value=2.0,
-                value=1.2,
+                value=1.0,
                 help="Adjusts how fast the text is spoken"
             )
         
@@ -108,7 +105,7 @@ def show_audio_settings():
                 "Vibrato Rate (Hz)",
                 min_value=0.0,
                 max_value=15.0,
-                value=8.0,
+                value=10.0,
                 help="How fast the vibrato oscillates"
             )
             
@@ -116,7 +113,7 @@ def show_audio_settings():
                 "Vibrato Depth",
                 min_value=0.0,
                 max_value=1.0,
-                value=0.3,
+                value=0.5,
                 help="How pronounced the vibrato effect is"
             )
             
@@ -124,7 +121,7 @@ def show_audio_settings():
                 "Distortion Amount",
                 min_value=1.0,
                 max_value=2.0,
-                value=1.2,
+                value=1.7,
                 help="Adds fuzzy distortion to the voice"
             )
         
@@ -149,23 +146,33 @@ def get_caqi_description(caqi):
     else:
         return "Very high air pollution", "💔"
 
+def get_air_quality_info(caqi):
+    """Get air quality description and tone based on CAQI value"""
+    if caqi <= 25:
+        return "OTTIMA", "molto allegro e gioioso"
+    elif caqi <= 50:
+        return "BUONA", "sereno e positivo"
+    elif caqi <= 75:
+        return "PREOCCUPANTE", "preoccupato e cauto"
+    elif caqi <= 100:
+        return "CATTIVA", "molto preoccupato"
+    else:
+        return "PESSIMA", "allarmato e pessimista"
+
 def main():
     st.title("🌍 Air Quality Poem Generator")
     
     initialize_session_state()
     
-    # If API keys aren't set, show the input form
     if not st.session_state.api_keys_set:
         set_api_keys()
         st.stop()
         
     st.markdown("### 1. Configure Generation Settings")
-    # Show customization options first
     system_prompt, user_prompt = show_prompt_settings()
     audio_params = show_audio_settings()
     
     st.markdown("### 2. Choose Location")
-    # Location input
     location_type = st.radio(
         "Choose location input type:",
         ["City Name", "Coordinates"]
@@ -184,7 +191,7 @@ def main():
     else:
         col1, col2 = st.columns(2)
         with col1:
-            latitude = st.number_input("Latitude", value=45.4642)  # Default to Milan
+            latitude = st.number_input("Latitude", value=45.4642)
         with col2:
             longitude = st.number_input("Longitude", value=9.1900)
         location = {"latitude": latitude, "longitude": longitude}
@@ -192,17 +199,14 @@ def main():
     st.markdown("### 3. Generate")
     if location and st.button("Generate Poem", type="primary"):
         try:
-            # Initialize clients
             api_client = AirQualityAPI(st.session_state.google_key)
             poem_generator = PoemGenerator(st.session_state.openai_key)
             audio_processor = AudioProcessor(st.session_state.openai_key)
             
-            # Get air quality data
             with st.spinner("Fetching air quality data..."):
                 air_data = api_client.get_air_quality(location)
                 st.session_state.air_quality_data = air_data
             
-            # Get location info
             geolocator = Nominatim(user_agent="air_quality_poems")
             if location_type == "City Name":
                 city_name = city
@@ -210,7 +214,6 @@ def main():
                 location_info = geolocator.reverse(f"{latitude}, {longitude}")
                 city_name = location_info.raw.get('address', {}).get('city', 'Unknown City')
             
-            # Display air quality data
             caqi = air_data["caqi"]
             quality_text, quality_emoji = get_caqi_description(caqi)
             
@@ -223,15 +226,36 @@ def main():
                 st.markdown(f"**Location:** {city_name}")
                 st.markdown(f"**Main Pollutant:** {air_data['dominantPollutant']}")
             
-            # Generate new poem
             current_date = datetime.now().strftime("%d %B %Y")
             with st.spinner("Generating poem..."):
-                formatted_prompt = user_prompt.format(
-                    city=city_name,
-                    current_date=current_date,
-                    caqi=caqi,
-                    dominant_pollutant=air_data["dominantPollutant"]
-                )
+                # Debug section
+                with st.expander("🔍 Debug: Prompt Data", expanded=False):
+                    st.json({
+                        "Input Data": {
+                            "city": city_name,
+                            "current_date": current_date,
+                            "caqi": caqi,
+                            "dominant_pollutant": air_data["dominantPollutant"]
+                        }
+                    })
+                    
+                    air_quality_description, tone_description = get_air_quality_info(caqi)
+                    
+                    formatted_prompt = user_prompt.format(
+                        city=city_name,
+                        current_date=current_date,
+                        caqi=caqi,
+                        dominant_pollutant=air_data["dominantPollutant"],
+                        air_quality_description=air_quality_description,
+                        tone_description=tone_description
+                    )
+                    
+                    st.markdown("#### System Prompt")
+                    st.text(system_prompt)
+                    
+                    st.markdown("#### Formatted User Prompt")
+                    st.text(formatted_prompt)
+                
                 st.session_state.current_poem = poem_generator.generate(
                     air_data,
                     system_prompt=system_prompt,
@@ -241,7 +265,6 @@ def main():
             st.markdown("#### Generated Poem")
             st.text_area("Poem Text", st.session_state.current_poem, height=200)
             
-            # Generate and process audio
             with st.spinner("Generating Animalese speech..."):
                 audio = audio_processor.generate_animalese(
                     st.session_state.current_poem,
@@ -249,11 +272,9 @@ def main():
                 )
                 st.audio(audio, format='audio/wav')
             
-            # Control buttons in columns
             col1, col2 = st.columns(2)
             
             with col1:
-                # Add button to regenerate only the audio
                 if st.button("🔄 Regenerate Audio"):
                     with st.spinner("Regenerating audio..."):
                         new_audio = audio_processor.generate_animalese(
@@ -263,7 +284,6 @@ def main():
                         st.audio(new_audio, format='audio/wav')
             
             with col2:
-                # Add button to generate a new poem
                 if st.button("🎲 New Poem"):
                     del st.session_state.current_poem
                     st.rerun()
@@ -271,11 +291,10 @@ def main():
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
 
-    # Add footer with information
     st.markdown("---")
     st.markdown("""
     ### About
-    This app generates haikus inspired by air quality data, combining environmental awareness with poetry.
+    This app generates poems inspired by air quality data, combining environmental awareness with poetry.
     - Data from Google Air Quality API
     - Poems generated using OpenAI GPT
     - Voice generation using OpenAI TTS with Animalese-style effects
