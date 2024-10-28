@@ -1,5 +1,6 @@
 # src/api_client.py
 import requests
+import json
 from typing import Dict, Any
 
 class AirQualityAPI:
@@ -8,9 +9,6 @@ class AirQualityAPI:
         self.base_url = "https://airquality.googleapis.com/v1/currentConditions:lookup"
     
     def get_air_quality(self, location: Dict[str, float], city: str = "milano") -> Dict[str, Any]:
-        """
-        Get air quality data for a specific location
-        """
         payload = {
             "location": {
                 "latitude": float(location["latitude"]),
@@ -41,7 +39,17 @@ class AirQualityAPI:
             response.raise_for_status()
             data = response.json()
             
-            # Specifically look for CAQI
+            # Pretty print the full response
+            print("\nFull API Response:")
+            print(json.dumps(data, indent=2))
+            
+            # Also specifically print pollutants
+            print("\nPollutants details:")
+            for pollutant in data.get("pollutants", []):
+                print(f"{pollutant.get('displayName', 'Unknown')}: "
+                      f"{pollutant.get('concentration', {}).get('value', 'N/A')} "
+                      f"{pollutant.get('concentration', {}).get('units', 'N/A')}")
+            
             caqi_index = next((idx for idx in data.get("indexes", []) 
                              if idx.get("code") == "caqi"), None)
             
@@ -52,7 +60,13 @@ class AirQualityAPI:
                 "caqi": caqi_index.get("aqi", 0),
                 "dominantPollutant": caqi_index.get("dominantPollutant", "Unknown"),
                 "category": caqi_index.get("category", "Unknown"),
-                "color": caqi_index.get("color", {})  # Also get the color if available
+                "color": caqi_index.get("color", {}),
+                "pollutants": {
+                    p["displayName"]: {
+                        "concentration": p["concentration"]["value"],
+                        "unit": p["concentration"]["units"]
+                    } for p in data.get("pollutants", [])
+                }
             }
             
         except requests.exceptions.RequestException as e:
