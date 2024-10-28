@@ -28,11 +28,11 @@ class AudioProcessor:
         """
         # Default parameters
         default_params = {
-            "pitch_shift": 6.0,
-            "vibrato_rate": 8.0,
-            "vibrato_depth": 0.3,
-            "distortion": 1.2,
-            "speed": 1.2
+            "pitch_shift": 7.2,
+            "vibrato_rate": 10.0,
+            "vibrato_depth": 0.5,
+            "distortion": 1.7,
+            "speed": 1.0
         }
         
         # Use provided parameters or defaults
